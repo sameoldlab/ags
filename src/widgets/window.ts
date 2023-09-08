@@ -1,6 +1,7 @@
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk?version=3.0';
 import Gdk from 'gi://Gdk?version=3.0';
+import GLib from 'gi://GLib';
 import App from '../app.js';
 
 const { GtkLayerShell } = imports.gi;
@@ -45,29 +46,66 @@ export default class AgsWindow extends Gtk.Window {
         this.show_all();
         this.popup = popup;
         this.visible = visible === true || visible === null && !popup;
+
+
+        this.connect('delete-event', () => !this._forceDestroy);
+        this.connect('destroy', () => !this._forceDestroy);
+        Gdk.Display.get_default()?.connect('monitor-added', this._onMonitorAdded.bind(this));
+        Gdk.Display.get_default()?.connect('monitor-removed', this._onMonitorRemoved.bind(this));
+    }
+
+    private _forceDestroy = false;
+    forceDestroy() {
+        this._forceDestroy = true;
+        this.destroy();
+    }
+
+    private _shouldShow = false;
+    private _onMonitorAdded() {
+        if (this._shouldShow && this.visible) {
+            this.visible = false;
+            GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this.present();
+
+                // TODO figure out how to show on correct monitor
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    private _onMonitorRemoved(_: AgsWindow, monitor: Gdk.Monitor) {
+        if (monitor === this.monitor)
+            this._shouldShow = true;
     }
 
     _monitor: Gdk.Monitor | null = null;
     get monitor() { return this._monitor; }
     set monitor(monitor: number | null | Gdk.Monitor) {
-        if (monitor === null) {
-            this._monitor = monitor;
+        const display = Gdk.Display.get_default();
+        if (!display) {
             return;
         }
 
-        if (typeof monitor === 'number') {
-            const m = Gdk.Display.get_default()?.get_monitor(monitor);
-            if (m) {
-                GtkLayerShell.set_monitor(this, m);
-                this._monitor = m;
-                return;
-            }
-            console.error(`Could not find monitor with id: ${monitor}`);
+        else if (typeof monitor === 'number') {
+            const m = display.get_monitor(monitor);
+            if (!m)
+                console.error(`Could not find monitor with id: ${monitor}`);
+
+            GtkLayerShell.set_monitor(this, m);
+            this._monitor = m;
         }
 
-        if (monitor instanceof Gdk.Monitor) {
+        else if (monitor instanceof Gdk.Monitor) {
             GtkLayerShell.set_monitor(this, monitor);
             this._monitor = monitor;
+        }
+
+        else {
+            const gdkWindow = this.get_window();
+            if (!gdkWindow)
+                return;
+
+            this._monitor = display.get_monitor_at_window(gdkWindow);
         }
     }
 
