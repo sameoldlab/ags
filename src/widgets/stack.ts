@@ -1,5 +1,5 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
 
 interface Params {
     items?: [string, Gtk.Widget][]
@@ -38,30 +38,19 @@ export default class AgsStack extends Gtk.Stack {
         this.items = items;
     }
 
-    add_named(child: Gtk.Widget, name: string): void {
-        this._items.push([name, child]);
-        super.add_named(child, name);
+    add_named(child: Gtk.Widget, name?: string | null | undefined): Gtk.StackPage {
+        this._items.push([name || '', child]);
+        return super.add_named(child, name);
     }
 
     _items: [string, Gtk.Widget][] = [];
     get items() { return this._items; }
     set items(items: [string, Gtk.Widget][]) {
-        this._items
-            .filter(([name]) => !items.find(([n]) => n === name))
-            .forEach(([, ch]) => ch.destroy());
-
-        // remove any children that weren't destroyed so
-        // we can re-add everything without trying to add
-        // items multiple times
-        this._items
-            .filter(([, ch]) => this.get_children().includes(ch))
-            .forEach(([, ch]) => this.remove(ch));
-
+        this._items.forEach(([_, ch]) => this.remove(ch));
         this._items = [];
         items.forEach(([name, widget]) => {
             widget && this.add_named(widget, name);
         });
-        this.show_all();
     }
 
     get transition() { return transitions[this.transitionType]; }

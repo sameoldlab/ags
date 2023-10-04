@@ -1,5 +1,5 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
 import { connect } from './utils.js';
 import { type Ctor } from 'gi-types/gobject2.js';
 

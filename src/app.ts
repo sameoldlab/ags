@@ -1,5 +1,5 @@
-import Gtk from 'gi://Gtk?version=3.0';
-import Gdk from 'gi://Gdk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
+import Gdk from 'gi://Gdk?version=4.0';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
@@ -46,31 +46,31 @@ class App extends Gtk.Application {
     get config() { return this._config; }
 
     resetCss() {
-        const screen = Gdk.Screen.get_default();
-        if (!screen) {
-            console.error("couldn't get screen");
+        const display = Gdk.Display.get_default();
+        if (!display) {
+            console.error("couldn't get display");
             return;
         }
 
         this._cssProviders.forEach(provider => {
-            Gtk.StyleContext.remove_provider_for_screen(screen, provider);
+            Gtk.StyleContext.remove_provider_for_display(display, provider);
         });
 
         this._cssProviders = [];
     }
 
     applyCss(path: string) {
-        const screen = Gdk.Screen.get_default();
-        if (!screen) {
-            console.error("couldn't get screen");
+        const display = Gdk.Display.get_default();
+        if (!display) {
+            console.error("couldn't get display");
             return;
         }
 
         const cssProvider = new Gtk.CssProvider();
         cssProvider.load_from_path(path);
 
-        Gtk.StyleContext.add_provider_for_screen(
-            screen,
+        Gtk.StyleContext.add_provider_for_display(
+            display,
             cssProvider,
             Gtk.STYLE_PROVIDER_PRIORITY_USER,
         );

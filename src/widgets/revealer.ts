@@ -1,5 +1,5 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
 
 const transitions = [
     'none', 'crossfade',
@@ -31,7 +31,6 @@ export default class AgsRevealer extends Gtk.Revealer {
             return;
         }
 
-        // @ts-expect-error
-        this.transitionType = Gtk.RevealerTransitionType[transition.toUpperCase()];
+        this.transitionType = transitions.findIndex(t => t === transition);
     }
 }

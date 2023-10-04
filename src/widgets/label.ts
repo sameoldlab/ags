@@ -1,5 +1,5 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 
@@ -56,17 +56,16 @@ export default class AgsLabel extends Gtk.Label {
     }
 
     get truncate() { return truncate[this.ellipsize]; }
-    set truncate(truncate: string) {
-        if (!truncate)
+    set truncate(trunc: string) {
+        if (!trunc)
             return;
 
-        if (!truncate.includes(truncate)) {
+        if (!truncate.includes(trunc)) {
             console.error('wrong truncate value for Label');
             return;
         }
 
-        // @ts-expect-error
-        this.ellipsize = Pango.EllipsizeMode[truncate.toUpperCase()];
+        this.ellipsize = truncate.findIndex(t => t === trunc);
     }
 
     get justification() { return justification[this.justify]; }
@@ -79,7 +78,6 @@ export default class AgsLabel extends Gtk.Label {
             return;
         }
 
-        // @ts-expect-error
-        this.justify = Gtk.Justification[justify.toUpperCase()];
+        this.justify = justification.findIndex(j => j === justify);
     }
 }

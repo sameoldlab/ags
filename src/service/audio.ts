@@ -120,11 +120,13 @@ class Audio extends Service {
         this._streams = new Map();
         this._streamBindings = new Map();
 
-        bulkConnect((this._control as unknown) as GObject.Object, [
-            ['default-sink-changed', (_c, id: number) => this._defaultChanged(id, 'speaker')],
-            ['default-source-changed', (_c, id: number) => this._defaultChanged(id, 'microphone')],
-            ['stream-added', this._streamAdded.bind(this)],
-            ['stream-removed', this._streamRemoved.bind(this)],
+        bulkConnect(this._control as unknown as GObject.Object, [
+            ['default-sink-changed', (_, id) =>
+                this._defaultChanged(id as number, 'speaker')],
+            ['default-source-changed', (_, id) =>
+                this._defaultChanged(id as number, 'microphone')],
+            ['stream-added', (_, id) => this._streamAdded(id as number)],
+            ['stream-removed', (_, id) => this._streamRemoved(id as number)],
         ]);
 
         this._control.open();
@@ -164,7 +166,7 @@ class Audio extends Service {
         this.emit(`${type}-changed`);
     }
 
-    private _streamAdded(_c: Gvc.MixerControl, id: number) {
+    private _streamAdded(id: number) {
         if (this._streams.has(id))
             return;
 
@@ -188,7 +190,7 @@ class Audio extends Service {
         this.emit('changed');
     }
 
-    private _streamRemoved(_c: Gvc.MixerControl, id: number) {
+    private _streamRemoved(id: number) {
         const stream = this._streams.get(id);
         if (!stream)
             return;

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -27,13 +26,13 @@ class AgsVariable extends GObject.Object {
         }, this);
     }
 
-    private _value: any;
+    private _value: unknown;
     private _poll?: Poll;
     private _listen?: Listen;
     private _interval?: number;
     private _subprocess?: Gio.Subprocess | null;
 
-    constructor(value: any, { poll, listen }: Options = {}) {
+    constructor(value: unknown, { poll, listen }: Options = {}) {
         super();
         this.value = value;
 
@@ -127,14 +126,14 @@ class AgsVariable extends GObject.Object {
     }
 
     getValue() { return this._value; }
-    setValue(value: any) {
+    setValue(value: unknown) {
         this._value = value;
         this.notify('value');
         this.emit('changed');
     }
 
     get value() { return this._value; }
-    set value(value: any) { this.setValue(value); }
+    set value(value: unknown) { this.setValue(value); }
 }
 
-export default (value: any, options: Options) => new AgsVariable(value, options);
+export default (value: unknown, options: Options) => new AgsVariable(value, options);

@@ -1,5 +1,5 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
 
 export default class AgsBox extends Gtk.Box {
     static {
@@ -22,24 +22,21 @@ export default class AgsBox extends Gtk.Box {
             this.children = children;
     }
 
-    get children() { return this.get_children(); }
+    get children(): Gtk.Widget[] {
+        const arr = [];
+        let ch = this.get_first_child();
+        while (ch) {
+            arr.push(ch);
+            ch = ch.get_next_sibling();
+        }
+        return arr;
+    }
+
     set children(children: Gtk.Widget[] | null) {
-        const newChildren = children || [];
+        this.children.forEach(ch => this.remove(ch));
 
-        this.get_children()
-            .filter(ch => !newChildren?.includes(ch))
-            .forEach(ch => ch.destroy());
-
-        // remove any children that weren't destroyed so
-        // we can re-add everything in the correct new order
-        this.get_children()
-            .forEach(ch => this.remove(ch));
-
-        if (!children)
-            return;
-
-        children.forEach(w => w && this.add(w));
-        this.show_all();
+        if (children)
+            children.forEach(w => w && this.append(w));
     }
 
     get vertical() { return this.orientation === Gtk.Orientation.VERTICAL; }

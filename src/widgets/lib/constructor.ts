@@ -1,55 +1,37 @@
-import Gtk from 'gi://Gtk?version=3.0';
-import GObject from 'gi://GObject';
-import { connect, interval } from '../utils.js';
-
-export type Command = string | ((...args: unknown[]) => boolean);
-
-type ConnectWidget = (
-    widget: Gtk.Widget,
-    callback: (widget: Gtk.Widget, ...args: unknown[]) => void,
-    event?: string
-) => void
-
-interface Connectable extends GObject.Object {
-    instance: { connectWidget: ConnectWidget }
-    connectWidget: ConnectWidget
-}
-
-interface CommonParams {
-    className?: string
-    style?: string
-    css?: string
-    halign?: 'start' | 'center' | 'end' | 'fill'
-    valign?: 'start' | 'center' | 'end' | 'fill'
-    connections?: (
-        [string, (...args: unknown[]) => unknown] |
-        [number, (...args: unknown[]) => unknown] |
-        [Connectable, (...args: unknown[]) => unknown, string]
-    )[]
-    properties?: [prop: string, value: unknown][]
-    binds?: [
-        prop: string,
-        obj: Connectable,
-        objProp?: string,
-        transform?: (value: unknown) => unknown][],
-    setup?: (widget: Gtk.Widget) => void
-}
+import Gtk from 'gi://Gtk?version=4.0';
+import { CommonParams, Ctor, EventParams } from './types.js';
+import { connect, interval } from '../../utils.js';
 
 function separateCommon({
     className, style, css, halign, valign, connections, properties, binds, setup,
+    onKeyPressed, onKeyReleased, onFocusEnter, onFocusLeave,
+    onMotion, onHoverEnter, onHoverLeave, onScroll, onScrollUp, onScrollDown,
+    onButtonPressed, onButtonReleased,
     ...rest
-}: CommonParams) {
+}: CommonParams & EventParams) {
     return [
-        { className, style, css, halign, valign, connections, properties, binds, setup },
+        {
+            className, style, css, halign, valign, connections, properties, binds, setup,
+            onKeyPressed, onKeyReleased, onFocusEnter, onFocusLeave,
+            onMotion, onHoverEnter, onHoverLeave, onScroll, onScrollUp, onScrollDown,
+            onButtonPressed, onButtonReleased,
+        },
         rest,
     ];
 }
 
 function parseCommon(widget: Gtk.Widget, {
-    className, style, css,
-    halign, valign,
+    className, style, css, halign, valign,
     connections = [], properties, binds, setup,
-}: CommonParams) {
+    ...eventHandlers
+}: CommonParams & EventParams) {
+    Object.keys(eventHandlers).forEach(handler => {
+        // @ts-expect-error
+        if (eventHandlers[handler])
+            // @ts-expect-error
+            widget[handler] = eventHandlers[handler];
+    });
+
     if (className !== undefined)
         // @ts-expect-error
         widget.className = className;
@@ -107,6 +89,9 @@ function parseCommon(widget: Gtk.Widget, {
         });
     }
 
+    if (typeof setup === 'function')
+        setup(widget);
+
     if (connections) {
         connections.forEach(([s, callback, event]) => {
             if (!s || !callback) {
@@ -130,15 +115,10 @@ function parseCommon(widget: Gtk.Widget, {
                 logError(new Error(`${s} is not connectable`));
         });
     }
-
-    if (typeof setup === 'function')
-        setup(widget);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ctor = { new(...args: any[]): Gtk.Widget }
 export function constructor(
-    ctor: ctor,
+    ctor: Ctor,
     params: CommonParams | string = {},
 ) {
     let widget;

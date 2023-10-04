@@ -1,9 +1,8 @@
 import GObject from 'gi://GObject';
-import Gtk from 'gi://Gtk?version=3.0';
-import Gdk from 'gi://Gdk?version=3.0';
-import App from '../app.js';
+import Gtk from 'gi://Gtk?version=4.0';
+import Gdk from 'gi://Gdk?version=4.0';
 
-const { GtkLayerShell } = imports.gi;
+const { Gtk4LayerShell: LayerShell } = imports.gi;
 
 interface Params {
     anchor?: string[] | string
@@ -12,8 +11,7 @@ interface Params {
     layer?: string
     margin?: number[] | number
     monitor?: null | Gdk.Monitor | number
-    popup?: boolean
-    visible?: null | boolean
+    visible?: boolean
 }
 
 export default class AgsWindow extends Gtk.Window {
@@ -28,13 +26,12 @@ export default class AgsWindow extends Gtk.Window {
         layer = 'top',
         margin = [],
         monitor = null,
-        popup = false,
-        visible = null,
+        visible = true,
         ...params
     }: Params = {}) {
-        super(params);
-        GtkLayerShell.init_for_window(this);
-        GtkLayerShell.set_namespace(this, this.name);
+        super({ visible, ...params });
+        LayerShell.init_for_window(this);
+        LayerShell.set_namespace(this, this.name);
 
         this.anchor = anchor;
         this.exclusive = exclusive;
@@ -42,9 +39,6 @@ export default class AgsWindow extends Gtk.Window {
         this.layer = layer;
         this.margin = margin;
         this.monitor = monitor;
-        this.show_all();
-        this.popup = popup;
-        this.visible = visible === true || visible === null && !popup;
     }
 
     _monitor: Gdk.Monitor | null = null;
@@ -56,9 +50,11 @@ export default class AgsWindow extends Gtk.Window {
         }
 
         if (typeof monitor === 'number') {
-            const m = Gdk.Display.get_default()?.get_monitor(monitor);
+            const m = Gdk.Display.get_default()?.get_monitors()
+                .get_item(monitor) as Gdk.Monitor;
+
             if (m) {
-                GtkLayerShell.set_monitor(this, m);
+                LayerShell.set_monitor(this, m);
                 this._monitor = m;
                 return;
             }
@@ -66,7 +62,7 @@ export default class AgsWindow extends Gtk.Window {
         }
 
         if (monitor instanceof Gdk.Monitor) {
-            GtkLayerShell.set_monitor(this, monitor);
+            LayerShell.set_monitor(this, monitor);
             this._monitor = monitor;
         }
     }
@@ -76,16 +72,16 @@ export default class AgsWindow extends Gtk.Window {
     set exclusive(exclusive: boolean) {
         this._exclusive = exclusive;
         exclusive
-            ? GtkLayerShell.auto_exclusive_zone_enable(this)
-            : GtkLayerShell.set_exclusive_zone(this, 0);
+            ? LayerShell.auto_exclusive_zone_enable(this)
+            : LayerShell.set_exclusive_zone(this, 0);
     }
 
     _layer = 'top';
     get layer() { return this._layer; }
     set layer(layer: string) {
         this._layer;
-        GtkLayerShell.set_layer(this,
-            GtkLayerShell.Layer[layer?.toUpperCase()]);
+        LayerShell.set_layer(this,
+            LayerShell.Layer[layer?.toUpperCase()]);
     }
 
     _anchor: string[] = [];
@@ -93,19 +89,16 @@ export default class AgsWindow extends Gtk.Window {
     set anchor(anchor: string[] | string) {
         this._anchor = [];
         ['TOP', 'LEFT', 'RIGHT', 'BOTTOM'].forEach(side =>
-            GtkLayerShell.set_anchor(
-                this, GtkLayerShell.Edge[side], false,
-            ),
-        );
+            LayerShell.set_anchor(this, LayerShell.Edge[side], false));
 
         if (typeof anchor === 'string')
             anchor = anchor.split(/\s+/);
 
         if (Array.isArray(anchor)) {
             anchor.forEach(side => {
-                GtkLayerShell.set_anchor(
+                LayerShell.set_anchor(
                     this,
-                    GtkLayerShell.Edge[side.toUpperCase()],
+                    LayerShell.Edge[side.toUpperCase()],
                     true,
                 );
                 this._anchor.push(side);
@@ -114,11 +107,7 @@ export default class AgsWindow extends Gtk.Window {
     }
 
     _margin: number[] | number = [0];
-
-    // @ts-expect-error
     get margin() { return this._margin; }
-
-    // @ts-expect-error
     set margin(margin: number[] | number) {
         let margins: [side: string, index: number][] = [];
         if (typeof margin === 'number')
@@ -142,38 +131,21 @@ export default class AgsWindow extends Gtk.Window {
         }
 
         margins.forEach(([side, i]) =>
-            GtkLayerShell.set_margin(this,
-                GtkLayerShell.Edge[side], (margin as number[])[i]),
+            LayerShell.set_margin(this,
+                LayerShell.Edge[side], (margin as number[])[i]),
         );
 
         this._margin = margin;
     }
 
-    _popup!: number;
-    get popup() { return !!this._popup; }
-    set popup(popup: boolean) {
-        if (this._popup)
-            this.disconnect(this._popup);
-
-        if (popup) {
-            this.connect('key-press-event', (_, event) => {
-                if (event.get_keyval()[1] === Gdk.KEY_Escape) {
-                    App.getWindow(this.name)
-                        ? App.closeWindow(this.name)
-                        : this.hide();
-                }
-            });
-        }
-    }
-
     get focusable() {
-        return GtkLayerShell.get_keyboard_mode(this) ===
-            GtkLayerShell.KeyboardMode.ON_DEMAND;
+        return LayerShell.get_keyboard_mode(this) ===
+            LayerShell.KeyboardMode.ON_DEMAND;
     }
 
     set focusable(focusable: boolean) {
-        GtkLayerShell.set_keyboard_mode(
-            this, GtkLayerShell.KeyboardMode[focusable ? 'ON_DEMAND' : 'NONE'],
+        LayerShell.set_keyboard_mode(
+            this, LayerShell.KeyboardMode[focusable ? 'ON_DEMAND' : 'NONE'],
         );
     }
 }

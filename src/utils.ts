@@ -1,8 +1,9 @@
-import Gtk from 'gi://Gtk?version=3.0';
+import Gtk from 'gi://Gtk?version=4.0';
+import Gdk from 'gi://Gdk?version=4.0';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
-import { Command } from './widgets/constructor.js';
+import { Command } from './widgets/lib/types.js';
 
 
 export const USER = GLib.get_user_name();
@@ -73,8 +74,7 @@ export function bulkConnect(
     service: GObject.Object,
     list: [
         event: string,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        callback: (...args: any[]) => void
+        callback: (...args: unknown[]) => void
     ][],
 ) {
     const ids = [];
@@ -158,15 +158,17 @@ export function runCmd(
     return false;
 }
 
-export function lookUpIcon(name?: string, size = 16) {
+export function lookUpIcon(name?: string) {
     if (!name)
         return null;
 
-    return Gtk.IconTheme.get_default().lookup_icon(
-        name,
-        size,
-        Gtk.IconLookupFlags.USE_BUILTIN,
-    );
+    const display = Gdk.Display.get_default();
+    if (!display) {
+        console.error("couldn't get display");
+        return;
+    }
+
+    return Gtk.IconTheme.get_for_display(display).has_icon(name);
 }
 
 export function ensureDirectory(path?: string) {

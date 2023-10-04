@@ -1,3 +1,4 @@
+// TODO
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk?version=3.0';
 import GLib from 'gi://GLib';
@@ -46,7 +47,7 @@ export default class AgsIcon extends Gtk.Image {
                     GdkPixbuf.Pixbuf.new_from_file_at_size(
                         this.icon as string,
                         this.size * this.scale_factor,
-                        this.size  * this.scale_factor);
+                        this.size * this.scale_factor);
                 const cs = Gdk.cairo_surface_create_from_pixbuf(pb, 0, this.get_window());
                 this.set_from_surface(cs);
             } else {
