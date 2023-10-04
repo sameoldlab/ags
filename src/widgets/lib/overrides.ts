@@ -129,7 +129,7 @@ const legacy = (w: Widget) => makeController(w, 'Legacy', c => {
 
         if (btnPress || btnRelease) {
             const button = (e as Gdk.ButtonEvent).get_button();
-            handled ||= runCmd(widget['onClick'], widget, button, mod);
+            handled ||= runCmd(widget['onClick'], widget, button, mod, btnPress);
         }
 
         if (btnPress) {
