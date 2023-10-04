@@ -1,4 +1,5 @@
 import Gtk from 'gi://Gtk?version=4.0';
+import Gdk from 'gi://Gdk?version=4.0';
 import { Command } from './types.js';
 import { runCmd } from '../../utils.js';
 
@@ -66,47 +67,200 @@ Object.defineProperty(Gtk.Widget.prototype, 'halign', {
     get: function() {
         return aligns[this.get_halign()];
     },
-    set: function(v: string) {
-        this.set_halign(aligns.findIndex(align => align === v));
+    set: function(v: string | number) {
+        if (typeof v === 'string')
+            this.set_halign(aligns.findIndex(align => align === v));
+        else
+            this.set_halign(v);
     },
 });
 
 // event handlers
-function defineHandler(
-    prop: string,
-    signal: string,
-    type: string,
-    controllerCtor: { new(): Gtk.EventController },
-    handleCondition: (...args: unknown[]) => boolean = () => true,
+type Widget = { [key: string]: Gtk.EventController };
+function makeController(
+    widget: Widget,
+    type: 'Focus' | 'Key' | 'Motion' | 'Legacy' | 'Scroll',
+    setup: (controller: Gtk.EventController) => void,
 ) {
-    Object.defineProperty(Gtk.Widget.prototype, prop, {
-        get: function() { return this[`_${prop}`]; },
-        set: function(handler: Command) {
-            const controller = `__${type}_handler`;
-            if (!this[controller]) {
-                this[controller] = new controllerCtor();
-                this.add_controller(this[controller]);
-
-                this[controller].connect(signal, (_: Gtk.EventController, ...args: unknown[]) => {
-                    if (handleCondition(...args))
-                        return runCmd(this[`_${prop}`], this, ...args);
-                });
-            }
-
-            this[`_${prop}`] = handler;
-        },
-    });
+    const name = `_${type.toLowerCase()}Controller`;
+    if (!widget[name]) {
+        const controller = new Gtk[`EventController${type}`]();
+        widget[name] = controller;
+        (widget as unknown as Gtk.Widget).add_controller(controller);
+        setup(controller);
+    }
 }
 
-defineHandler('onFocusLeave', 'leave', 'focus', Gtk.EventControllerFocus);
-defineHandler('onFocusEnter', 'enter', 'focus', Gtk.EventControllerFocus);
+const focus = (w: Widget) => makeController(w, 'Focus', c => {
+    const controller = c as Gtk.EventControllerFocus;
+    const widget = w as unknown as { [handler: string]: Command };
+    controller.connect('enter', () => {
+        return runCmd(widget['onFocusEnter'], widget);
+    });
+    controller.connect('leave', () => {
+        return runCmd(widget['onFocusLeave'], widget);
+    });
+});
 
-defineHandler('onKeyReleased', 'key-released', 'key', Gtk.EventControllerKey);
-defineHandler('onKeyPressed', 'key-pressed', 'key', Gtk.EventControllerKey);
-defineHandler('onKeyModifier', 'modifiers', 'key', Gtk.EventControllerKey);
+const key = (w: Widget) => makeController(w, 'Key', c => {
+    const controller = c as Gtk.EventControllerKey;
+    const widget = w as unknown as { [handler: string]: Command };
+    controller.connect('key-pressed', (_, ...args: number[]) => {
+        return runCmd(widget['onKeyPressed'], widget, ...args);
+    });
+    controller.connect('key-released', (_, ...args: number[]) => {
+        return runCmd(widget['onKeyReleased'], widget, ...args);
+    });
+    controller.connect('modifiers', (_, ...args: number[]) => {
+        return runCmd(widget['onKeyModifier'], widget, ...args);
+    });
+});
 
-defineHandler('onMotion', 'motion', 'motion', Gtk.EventControllerMotion);
-defineHandler('onHoverLeave', 'leave', 'motion', Gtk.EventControllerMotion);
-defineHandler('onHoverEnter', 'enter', 'motion', Gtk.EventControllerMotion);
+const legacy = (w: Widget) => makeController(w, 'Legacy', c => {
+    const controller = c as Gtk.EventControllerKey;
+    const widget = w as unknown as { [handler: string]: Command };
+    controller.connect('event', (_, e: Gdk.Event) => {
+        const btnPress = e.get_event_type() === Gdk.EventType.BUTTON_PRESS;
+        const btnRelease = e.get_event_type() === Gdk.EventType.BUTTON_RELEASE;
+        const mod = e.get_modifier_state();
+        let handled = false;
 
-// TODO onscroll, onbutton
+        handled ||= runCmd(widget['onLegacy'], widget, e);
+
+        if (btnPress || btnRelease) {
+            const button = (e as Gdk.ButtonEvent).get_button();
+            handled ||= runCmd(widget['onClick'], widget, button, mod);
+        }
+
+        if (btnPress) {
+            const button = (e as Gdk.ButtonEvent).get_button();
+            if (button === 1)
+                handled ||= runCmd(widget['onPrimaryClick'], widget, mod);
+
+            else if (button === 2)
+                handled ||= runCmd(widget['onMiddleClick'], widget, mod);
+
+            else if (button === 3)
+                handled ||= runCmd(widget['onSecondaryClick'], widget, mod);
+        }
+
+
+        if (btnRelease) {
+            const button = (e as Gdk.ButtonEvent).get_button();
+            if (button === 1)
+                handled ||= runCmd(widget['onPrimaryClickRelease'], widget, mod);
+
+            else if (button === 2)
+                handled ||= runCmd(widget['onMiddleClickRelease'], widget, mod);
+
+            else if (button === 3)
+                handled ||= runCmd(widget['onSecondaryClickRelease'], widget, mod);
+        }
+
+        return handled;
+    });
+});
+
+const motion = (w: Widget) => makeController(w, 'Motion', c => {
+    const controller = c as Gtk.EventControllerMotion;
+    const widget = w as unknown as { [handler: string]: Command };
+    controller.connect('enter', (_, ...args: number[]) => {
+        return runCmd(widget['onHoverEnter'], widget, ...args);
+    });
+    controller.connect('leave', () => {
+        return runCmd(widget['onHoverLeave'], widget);
+    });
+    controller.connect('enter', (_, ...args: number[]) => {
+        return runCmd(widget['onMotion'], widget, ...args);
+    });
+});
+
+const scroll = (w: Widget) => makeController(w, 'Scroll', c => {
+    const controller = c as Gtk.EventControllerScroll;
+    const widget = w as unknown as { [handler: string]: Command };
+    controller.set_flags(Gtk.EventControllerScrollFlags.BOTH_AXES);
+    controller.connect('scroll', (_, dx: number, dy: number) => {
+        let handled = false;
+
+        handled ||= runCmd(widget['onScoll'], widget, dx, dy);
+
+        if (dy < 0)
+            handled ||= runCmd(widget['onScrollUp'], widget, dx, dy);
+
+        else if (dy > 0)
+            handled ||= runCmd(widget['onScrollDown'], widget, dx, dy);
+
+        if (dx < 0)
+            handled ||= runCmd(widget['onScrollLeft'], widget, dx, dy);
+
+        else if (dx > 0)
+            handled ||= runCmd(widget['onScrollRight'], widget, dx, dy);
+
+        return handled;
+    });
+    controller.connect('scroll-begin', () => {
+        return runCmd(widget['onScollBegin'], widget);
+    });
+    controller.connect('scroll-end', () => {
+        return runCmd(widget['onScollEnd'], widget);
+    });
+    controller.connect('scroll-end', (_, ...args: number[]) => {
+        return runCmd(widget['onScollDecelerate'], widget, ...args);
+    });
+});
+
+function defineHandler(
+    type: 'Focus' | 'Key' | 'Motion' | 'Legacy' | 'Scroll',
+    props: string[],
+) {
+    props.forEach(prop => Object.defineProperty(Gtk.Widget.prototype, prop, {
+        get: function() { return this[`_${prop}`]; },
+        set: function(handler: Command) {
+            this[`_${prop}`] = handler;
+            switch (type) {
+                case 'Focus': focus(this as Widget); break;
+                case 'Key': key(this as Widget); break;
+                case 'Legacy': legacy(this as Widget); break;
+                case 'Motion': motion(this as Widget); break;
+                case 'Scroll': scroll(this as Widget); break;
+            }
+        },
+    }));
+}
+
+defineHandler('Focus', [
+    'onFocusEnter',
+    'onFocusLeave',
+]);
+
+defineHandler('Key', [
+    'onKeyReleased',
+    'onKeyPressed',
+    'onKeyModifier',
+]);
+
+defineHandler('Legacy', [
+    'onLegacy',
+    'onClick',
+    'onPrimaryClick',
+    'onPrimaryClickRelease',
+    'onMiddleClick',
+    'onMiddleClickRelease',
+    'onSecondaryClick',
+    'onSecondaryClickRelease',
+]);
+
+defineHandler('Motion', [
+    'onMotion',
+    'onHoverLeave',
+    'onHoverEnter',
+]);
+
+defineHandler('Scroll', [
+    'onScroll',
+    'onScrollUp',
+    'onScrollDown',
+    'onScrollRight',
+    'onScrollLeft',
+    'onScollDecelerate',
+]);

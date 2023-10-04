@@ -137,15 +137,12 @@ export function timeout(ms: number, callback: () => void) {
 
 export function runCmd(
     cmd: Command,
-    ...args: unknown[]
+    ...rest: unknown[]
 ) {
-    if (typeof cmd !== 'string' && typeof cmd !== 'function') {
+    if (cmd && typeof cmd !== 'string' && typeof cmd !== 'function') {
         console.error('Command has to be string or function');
         return false;
     }
-
-    if (!cmd)
-        return false;
 
     if (typeof cmd === 'string') {
         GLib.spawn_command_line_async(cmd);
@@ -153,7 +150,8 @@ export function runCmd(
     }
 
     if (typeof cmd === 'function')
-        return cmd(...args);
+        // @ts-expect-error
+        return cmd(...rest);
 
     return false;
 }

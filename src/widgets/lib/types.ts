@@ -1,8 +1,7 @@
 import Gtk from 'gi://Gtk?version=4.0';
-import Gdk from 'gi://Gdk?version=4.0';
 import GObject from 'gi://GObject';
 
-export type Command = string | ((...args: unknown[]) => boolean);
+export type Command = string | ((widget: Gtk.Widget, ...args: unknown[]) => boolean);
 
 export type ConnectWidget = (
     widget: Gtk.Widget,
@@ -19,20 +18,28 @@ export interface Connectable extends GObject.Object {
 export type Ctor = { new(...args: any[]): Gtk.Widget }
 
 export interface EventParams {
-    // eslint-disable-next-line max-len
-    onKeyPressed?: (widget: Gtk.Widget, keyval: number, keycode: number, state: Gdk.ModifierType) => void,
-    // eslint-disable-next-line max-len
-    onKeyReleased?: (widget: Gtk.Widget, keyval: number, keycode: number, state: Gdk.ModifierType) => void,
-    onFocusEnter?: (widget: Gtk.Widget) => void,
-    onFocusLeave?: (widget: Gtk.Widget) => void,
-    onMotion?: (widget: Gtk.Widget, x: number, y: number) => void,
-    onHoverEnter?: (widget: Gtk.Widget, x: number, y: number) => void,
-    onHoverLeave?: (widget: Gtk.Widget) => void,
-    onScroll?: (widget: Gtk.Widget, dx: number, dy: number) => void,
-    onScrollUp?: (widget: Gtk.Widget) => void,
-    onScrollDown?: (widget: Gtk.Widget) => void,
-    onButtonPressed?: (widget: Gtk.Widget, button: number) => void,
-    onButtonReleased?: (widget: Gtk.Widget, button: number) => void,
+    onFocusEnter?: Command
+    onFocusLeave?: Command
+    onKeyReleased?: Command
+    onKeyPressed?: Command
+    onKeyModifier?: Command
+    onLegacy?: Command
+    onClick?: Command
+    onPrimaryClick?: Command
+    onPrimaryClickRelease?: Command
+    onMiddleClick?: Command
+    onMiddleClickRelease?: Command
+    onSecondaryClick?: Command
+    onSecondaryClickRelease?: Command
+    onMotion?: Command
+    onHoverLeave?: Command
+    onHoverEnter?: Command
+    onScroll?: Command
+    onScrollUp?: Command
+    onScrollDown?: Command
+    onScrollRight?: Command
+    onScrollLeft?: Command
+    onScollDecelerate?: Command
 }
 
 export interface CommonParams {
