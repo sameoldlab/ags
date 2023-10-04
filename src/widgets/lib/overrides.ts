@@ -2,6 +2,7 @@ import Gtk from 'gi://Gtk?version=4.0';
 import { Command } from './types.js';
 import { runCmd } from '../../utils.js';
 
+// styles
 const widgetProviders: Map<Gtk.Widget, Gtk.CssProvider> = new Map();
 function setCss(widget: Gtk.Widget, css: string) {
     const previous = widgetProviders.get(widget);
@@ -55,6 +56,7 @@ Gtk.Widget.prototype.setStyle = function(css: string) {
     setCss(this, `* { ${css} }`);
 };
 
+// aligns
 const aligns = [
     'fill', 'start', 'end', 'center',
     'baseline_fill', 'baseline', 'baseline_center',
@@ -69,25 +71,28 @@ Object.defineProperty(Gtk.Widget.prototype, 'halign', {
     },
 });
 
+// event handlers
 function defineHandler(
     prop: string,
     signal: string,
     type: string,
     controllerCtor: { new(): Gtk.EventController },
+    handleCondition: (...args: unknown[]) => boolean = () => true,
 ) {
     Object.defineProperty(Gtk.Widget.prototype, prop, {
-        get: function() {
-            return this[`_${prop}`];
-        },
+        get: function() { return this[`_${prop}`]; },
         set: function(handler: Command) {
             const controller = `__${type}_handler`;
             if (!this[controller]) {
                 this[controller] = new controllerCtor();
                 this.add_controller(this[controller]);
+
                 this[controller].connect(signal, (_: Gtk.EventController, ...args: unknown[]) => {
-                    return runCmd(this[`_${prop}`], this, ...args);
+                    if (handleCondition(...args))
+                        return runCmd(this[`_${prop}`], this, ...args);
                 });
             }
+
             this[`_${prop}`] = handler;
         },
     });
@@ -95,10 +100,13 @@ function defineHandler(
 
 defineHandler('onFocusLeave', 'leave', 'focus', Gtk.EventControllerFocus);
 defineHandler('onFocusEnter', 'enter', 'focus', Gtk.EventControllerFocus);
+
 defineHandler('onKeyReleased', 'key-released', 'key', Gtk.EventControllerKey);
 defineHandler('onKeyPressed', 'key-pressed', 'key', Gtk.EventControllerKey);
-defineHandler('onMotion', 'motion', 'hover', Gtk.EventControllerMotion);
-defineHandler('onHoverLeave', 'leave', 'hover', Gtk.EventControllerMotion);
-defineHandler('onHoverEnter', 'enter', 'hover', Gtk.EventControllerMotion);
+defineHandler('onKeyModifier', 'modifiers', 'key', Gtk.EventControllerKey);
+
+defineHandler('onMotion', 'motion', 'motion', Gtk.EventControllerMotion);
+defineHandler('onHoverLeave', 'leave', 'motion', Gtk.EventControllerMotion);
+defineHandler('onHoverEnter', 'enter', 'motion', Gtk.EventControllerMotion);
 
 // TODO onscroll, onbutton

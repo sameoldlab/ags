@@ -19,6 +19,7 @@
 , networkmanager
 , libdbusmenu-gtk3
 , gvfs
+, libadwaita
 }:
 
 let
@@ -89,6 +90,7 @@ stdenv.mkDerivation {
     networkmanager
     libdbusmenu-gtk3
     gvfs
+    libadwaita
   ];
 
   meta = with lib; {
